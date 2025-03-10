@@ -1,0 +1,8 @@
+{
+    "levelUp": true,
+    "spin": true,
+    "task": true,
+    "proxy": false,
+    "delay_loop": 3000,
+    "delay_account_switch": 10
+}  
