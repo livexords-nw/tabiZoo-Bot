@@ -27,6 +27,7 @@ class tabizoo:
     def __init__(self):
         self.query_list = self.load_query("query.txt")
         self.token = None
+        self.config = self.load_config()
 
     def banner(self) -> None:
         """Displays the banner for the bot."""
