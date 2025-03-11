@@ -607,6 +607,164 @@ class tabizoo:
         except Exception as e:
             self.log(f"❌ Error in levelUp function: {e}", Fore.RED)
 
+    def draw(self) -> None:
+        """
+        🎟️ [Auto Draw]
+        Automatically draws rewards as long as the user has enough zoo_coins.
+        After each draw, it refreshes the profile to update the zoo_coins balance.
+        If an error occurs, the process stops immediately.
+        Finally, it retrieves the owned materials list and checks crafting availability.
+        """
+        headers = {**self.HEADERS, "rawdata": self.token}
+        profile_url = f"{self.BASE_URL}user/v1/profile"
+        draw_url = f"{self.BASE_URL}lottery/v1/draw"
+        rewards_url = f"{self.BASE_URL}lottery/v1/owned-rewards"
+        crafting_url = f"{self.BASE_URL}synthesis/v1/config"
+
+        while True:
+            # Fetch user profile to get zoo_coins balance
+            response = requests.get(profile_url, headers=headers)
+            if response.status_code != 200:
+                self.log(f"⚠️ [Auto Draw] Failed to fetch profile! ({response.status_code})", Fore.RED)
+                break
+
+            profile_data = response.json()
+            # Menyimpan zoo_coins dari API profile
+            zoo_coins = profile_data.get("data", {}).get("user", {}).get("zoo_coins", 0)
+
+            # Check if zoo_coins are sufficient for a draw (misalnya, ambil dari config spin jika perlu)
+            if zoo_coins < 20:
+                self.log(f"❌ [Auto Draw] Not enough zoo_coins ({zoo_coins}) to draw.", Fore.YELLOW)
+                break
+
+            # Perform the draw
+            payload = {"draw_type": "free_draw", "draw_times": 1}
+            draw_response = requests.post(draw_url, json=payload, headers=headers)
+
+            if draw_response.status_code != 200:
+                self.log(f"⚠️ [Auto Draw] Failed to perform draw! ({draw_response.status_code})", Fore.RED)
+                break
+
+            draw_data = draw_response.json()
+            if draw_data.get("code") != 200:
+                self.log(f"⚠️ [Auto Draw] Draw error: {draw_data.get('message')}", Fore.RED)
+                break
+
+            # Extract draw result
+            basic_materials = draw_data["data"].get("basic_material", [])
+            material_info = ", ".join([f"{m['quantity']}x {m['material_name']}" for m in basic_materials]) if basic_materials else "No materials obtained"
+            self.log(f"✅ [Auto Draw] Successfully drew: {material_info}!", Fore.GREEN)
+
+            # Update zoo_coins balance locally
+            zoo_coins -= draw_data["data"]["cost_zoo"]
+            self.log(f"💰 [Auto Draw] Remaining zoo_coins: {zoo_coins}", Fore.CYAN)
+
+            # Stop loop if not enough zoo_coins for another draw
+            if zoo_coins < 20:
+                self.log("❌ [Auto Draw] Not enough zoo_coins for another draw.", Fore.YELLOW)
+                break
+
+        # Fetch owned materials after drawing
+        self.get_owned_materials()
+
+        # Fetch crafting recipes and check requirements
+        response = requests.get(crafting_url, headers=headers)
+        if response.status_code == 200:
+            crafting_data = response.json().get("data", {})
+            self.check_crafting_requirements(crafting_data)
+        else:
+            self.log(f"⚠️ [Crafting] Failed to fetch crafting recipes! ({response.status_code})", Fore.RED)
+
+
+    def check_crafting_requirements(self, recipes: dict) -> None:
+        """
+        🛠️ [Crafting Check]
+        Compares owned materials with crafting requirements.
+        """
+        materials = self.get_owned_materials(return_data=True)  # Get materials data
+
+        if not materials:
+            self.log("⚠️ [Crafting] No materials found, skipping crafting check.", Fore.YELLOW)
+            return
+
+        owned_basic = {m["material_id"]: m["quantity"] for m in materials.get("owned_basic_materials", [])}
+        # Jika owned_advanced_materials adalah None, kita gunakan list kosong
+        owned_advanced = {m["material_id"]: m["quantity"] for m in (materials.get("owned_advanced_materials") or [])}
+
+        for item_name, item in recipes.items():
+            requirements = item["requirements"]
+            can_craft = True
+
+            for req in requirements:
+                material_type = req["type"]
+                material_id = req["material_id"]
+                required_qty = req["quantity"]
+
+                if material_type == "basic_material":
+                    available_qty = owned_basic.get(material_id, 0)
+                elif material_type == "advanced_material":
+                    available_qty = owned_advanced.get(material_id, 0)
+                else:
+                    continue  # Skip unknown types
+
+                if available_qty < required_qty:
+                    self.log(f"❌ [Crafting] Missing materials for {item_name}: {req['material_name']} ({available_qty}/{required_qty})", Fore.RED)
+                    can_craft = False
+                    break  # Stop checking this item if any material is missing
+
+            if can_craft:
+                self.log(f"✅ [Crafting] You have enough materials to craft {item_name}!", Fore.GREEN)
+
+
+    def get_owned_materials(self, return_data: bool = False):
+        """
+        📦 [Owned Materials]
+        Retrieves and displays the materials owned by the user.
+        """
+        headers = {**self.HEADERS, "rawdata": self.token}
+        rewards_url = f"{self.BASE_URL}lottery/v1/owned-rewards"
+        response = requests.get(rewards_url, headers=headers)
+
+        if response.status_code != 200:
+            self.log(f"⚠️ [Owned Materials] Failed to fetch owned materials! ({response.status_code})", Fore.RED)
+            return {} if return_data else None
+
+        materials_data = response.json().get("data", {})
+
+        if return_data:
+            return materials_data
+
+        basic_materials = materials_data.get("owned_basic_materials", [])
+        # Pastikan jika None, kita gunakan list kosong
+        advanced_materials = materials_data.get("owned_advanced_materials") or []
+
+        material_list = [f"{m['quantity']}x {m['material_name']}" for m in basic_materials + advanced_materials]
+        material_info = ", ".join(material_list) if material_list else "No materials owned."
+
+        self.log(f"📦 [Owned Materials] {material_info}", Fore.BLUE)
+
+
+    def get_spin_cost_config(self) -> dict:
+        """
+        🎰 [Spin Cost Config]
+        Retrieves the spin cost configuration (free draw times config and basic material config)
+        from the lottery profile endpoint.
+        """
+        headers = {**self.HEADERS, "rawdata": self.token}
+        spin_cost_url = f"{self.BASE_URL}lottery/v1/profile"
+        response = requests.get(spin_cost_url, headers=headers)
+
+        if response.status_code == 200:
+            data = response.json().get("data", {})
+            free_draw_times_config = data.get("free_draw_times_config", [])
+            basic_material_config = data.get("basic_material_config", [])
+            party_tokens_list = data.get("party_tokens_list", [])
+            self.log("✅ [Spin Cost] Spin cost configuration fetched successfully.", Fore.GREEN)
+            return data
+        else:
+            self.log(f"⚠️ [Spin Cost] Failed to fetch spin cost configuration! ({response.status_code})", Fore.RED)
+            return {}
+
     def load_proxies(self, filename="proxy.txt"):
         """
         Reads proxies from a file and returns them as a list.
@@ -734,6 +892,7 @@ if __name__ == "__main__":
             "task": "🧩 Auto Solve Task: Automatically solve tasks quickly and efficiently.",
             "spin": "🔄 Auto Spin: Spin automatically to earn rewards.",
             "levelUp": "⬆️ Auto Level Up: Automatically level up your skills to boost performance.",
+            "draw": "🎟️ Auto Draw: Automatically perform draws as long as zoo_coins are sufficient, then check owned materials and crafting options.",
         }
 
         for task_key, task_name in tasks.items():

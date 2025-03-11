@@ -13,6 +13,8 @@ TabiZoo Bot is designed to automate various tasks in **TabiZoo**, including:
 - **Auto Task:** Automatically complete tasks quickly and efficiently.
 - **Auto Spin:** Spin automatically to collect rewards.
 - **Auto Level Up:** Level up automatically to boost your performance.
+- **Auto Draw:** Perform draws automatically as long as you have sufficient zoo_coins.
+- **Crafting Check:** Check your owned materials to see if you have enough for crafting (currently, the system only checks and does not perform crafting).
 
 In addition, it provides configurable options such as:
 
@@ -23,12 +25,15 @@ With TabiZoo Bot, you can save time and achieve better outcomes with minimal man
 
 ---
 
-## 🌟 Version v1.0.0
+## 🌟 Version v1.1.0
 
 ### Updates
 
-- **Refined Feature Set:**  
-  TabiZoo Bot now focuses on three core functionalities—Auto Task, Auto Spin, and Auto Level Up—ensuring a streamlined and efficient experience.
+- **New Features Added:**
+  - **Auto Draw:** Automatically perform draws based on your zoo_coins balance.
+  - **Crafting Check:** Verify if you have the necessary materials to craft items (currently check-only, crafting functionality coming in the next update).
+- **What's Next:**  
+  The upcoming update will introduce a mining system and enable full crafting capabilities.
 
 ---
 
@@ -39,6 +44,7 @@ With TabiZoo Bot, you can save time and achieve better outcomes with minimal man
   "levelUp": true,
   "spin": true,
   "task": true,
+  "draw": true,
   "proxy": false,
   "delay_loop": 3000,
   "delay_account_switch": 10
@@ -48,6 +54,8 @@ With TabiZoo Bot, you can save time and achieve better outcomes with minimal man
 - **Auto Task:** Automatically solve tasks with speed and precision.
 - **Auto Spin:** Spin for rewards automatically to maximize your benefits.
 - **Auto Level Up:** Level up automatically to enhance your capabilities.
+- **Auto Draw:** Draw rewards automatically as long as zoo_coins are sufficient.
+- **Crafting Check:** Check owned materials to determine if crafting is possible (actual crafting will be added later).
 - **Proxy Support:** Optional proxy configuration (disabled by default).
 - **Delay Settings:** Customize delays for loop intervals (in milliseconds) and account switching (in seconds).
 
@@ -60,6 +68,7 @@ With TabiZoo Bot, you can save time and achieve better outcomes with minimal man
 | `task`                 | Automate task completion                     | `true`      |
 | `spin`                 | Automate reward spins                        | `true`      |
 | `levelUp`              | Automate leveling up                         | `true`      |
+| `draw`                 | Automate draws based on zoo_coins balance    | `true`      |
 | `proxy`                | Enable/Disable proxy usage                   | `false`     |
 | `delay_loop`           | Delay before the next loop (in milliseconds) | `3000`      |
 | `delay_account_switch` | Delay between account switches (seconds)     | `10`        |
